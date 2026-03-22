@@ -1,9 +1,11 @@
+import copy
 import re
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QScrollArea, QGridLayout, QPushButton, QLineEdit,
     QPlainTextEdit, QSplitter, QSizePolicy, QLabel, QApplication,
+    QComboBox, QMenu, QInputDialog, QMessageBox,
 )
 from PySide6.QtCore import Qt, QProcess, QProcessEnvironment
 from PySide6.QtGui import QTextCursor, QFont
@@ -30,6 +32,7 @@ class MainWindow(QMainWindow):
         self._pal: dict = {}
 
         self._build_ui()
+        self._refresh_profile_combo()
         self._populate_grid()
         self._apply_theme()
 
@@ -39,6 +42,11 @@ class MainWindow(QMainWindow):
             hints.colorSchemeChanged.connect(self._on_system_theme_changed)
         except AttributeError:
             pass  # Qt < 6.5
+
+    @property
+    def _profile(self) -> dict:
+        """Mutable reference to the active profile's data."""
+        return config.active_profile(self.cfg)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -54,6 +62,32 @@ class MainWindow(QMainWindow):
         # Top bar
         top = QHBoxLayout()
         top.addStretch()
+
+        # Profile selector
+        self.profile_combo = QComboBox()
+        self.profile_combo.setFixedHeight(30)
+        self.profile_combo.setMinimumWidth(120)
+        self.profile_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.profile_combo.currentIndexChanged.connect(
+            self._on_profile_changed)
+        top.addWidget(self.profile_combo)
+
+        # Profile manage button
+        self.profile_menu_btn = QPushButton("\u22ee")
+        self.profile_menu_btn.setFixedSize(30, 30)
+        self.profile_menu_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._profile_menu = QMenu(self)
+        self._profile_menu.addAction("New Profile", self._new_profile)
+        self._profile_menu.addAction("Duplicate Profile",
+                                     self._duplicate_profile)
+        self._profile_menu.addAction("Rename Profile", self._rename_profile)
+        self._profile_menu.addSeparator()
+        self._profile_menu.addAction("Delete Profile", self._delete_profile)
+        self.profile_menu_btn.setMenu(self._profile_menu)
+        top.addWidget(self.profile_menu_btn)
+
+        top.addSpacing(8)
+
         self.settings_btn = QPushButton("\u2699  Settings")
         self.settings_btn.setFixedHeight(30)
         self.settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -67,7 +101,8 @@ class MainWindow(QMainWindow):
         # Scrollable button grid
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.grid_widget = QWidget()
         self.grid_widget.setStyleSheet("background: transparent;")
         self.grid_layout = QGridLayout(self.grid_widget)
@@ -111,6 +146,137 @@ class MainWindow(QMainWindow):
         vbox.addLayout(input_bar)
 
     # ------------------------------------------------------------------
+    # Profile management
+    # ------------------------------------------------------------------
+
+    def _refresh_profile_combo(self):
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.clear()
+        for name in self.cfg.get("profiles", {}):
+            self.profile_combo.addItem(name)
+        idx = self.profile_combo.findText(
+            self.cfg.get("active_profile", ""))
+        if idx >= 0:
+            self.profile_combo.setCurrentIndex(idx)
+        self.profile_combo.blockSignals(False)
+
+    def _on_profile_changed(self, index: int):
+        name = self.profile_combo.itemText(index)
+        if not name or name == self.cfg.get("active_profile"):
+            return
+        self.cfg["active_profile"] = name
+        config.save(self.cfg)
+        self._populate_grid()
+
+    def _new_profile(self):
+        profiles = self.cfg.get("profiles", {})
+        if len(profiles) >= config.MAX_PROFILES:
+            QMessageBox.warning(
+                self, "Limit Reached",
+                f"Maximum of {config.MAX_PROFILES} profiles allowed.")
+            return
+        name, ok = QInputDialog.getText(
+            self, "New Profile", "Profile name:")
+        if not ok or not name:
+            return
+        try:
+            name = config.sanitize_profile_name(name)
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid Name", str(e))
+            return
+        if name in profiles:
+            QMessageBox.warning(
+                self, "Duplicate Name",
+                f'A profile named "{name}" already exists.')
+            return
+        profiles[name] = {
+            "grid_cols": config.PROFILE_DEFAULTS["grid_cols"],
+            "grid_rows": config.PROFILE_DEFAULTS["grid_rows"],
+            "buttons": {},
+        }
+        self.cfg["active_profile"] = name
+        config.save(self.cfg)
+        self._refresh_profile_combo()
+        self._populate_grid()
+
+    def _duplicate_profile(self):
+        profiles = self.cfg.get("profiles", {})
+        if len(profiles) >= config.MAX_PROFILES:
+            QMessageBox.warning(
+                self, "Limit Reached",
+                f"Maximum of {config.MAX_PROFILES} profiles allowed.")
+            return
+        active = self.cfg.get("active_profile", "Default")
+        name, ok = QInputDialog.getText(
+            self, "Duplicate Profile",
+            "Name for the copy:", text=f"{active} (copy)")
+        if not ok or not name:
+            return
+        try:
+            name = config.sanitize_profile_name(name)
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid Name", str(e))
+            return
+        if name in profiles:
+            QMessageBox.warning(
+                self, "Duplicate Name",
+                f'A profile named "{name}" already exists.')
+            return
+        profiles[name] = copy.deepcopy(profiles[active])
+        self.cfg["active_profile"] = name
+        config.save(self.cfg)
+        self._refresh_profile_combo()
+        self._populate_grid()
+
+    def _rename_profile(self):
+        profiles = self.cfg.get("profiles", {})
+        active = self.cfg.get("active_profile", "Default")
+        name, ok = QInputDialog.getText(
+            self, "Rename Profile", "New name:", text=active)
+        if not ok or not name:
+            return
+        try:
+            name = config.sanitize_profile_name(name)
+        except ValueError as e:
+            QMessageBox.warning(self, "Invalid Name", str(e))
+            return
+        if name == active:
+            return
+        if name in profiles:
+            QMessageBox.warning(
+                self, "Duplicate Name",
+                f'A profile named "{name}" already exists.')
+            return
+        # Rebuild dict to preserve ordering with the new key
+        rebuilt = {}
+        for k, v in profiles.items():
+            rebuilt[name if k == active else k] = v
+        self.cfg["profiles"] = rebuilt
+        self.cfg["active_profile"] = name
+        config.save(self.cfg)
+        self._refresh_profile_combo()
+
+    def _delete_profile(self):
+        profiles = self.cfg.get("profiles", {})
+        if len(profiles) <= 1:
+            QMessageBox.information(
+                self, "Cannot Delete",
+                "You must keep at least one profile.")
+            return
+        active = self.cfg.get("active_profile", "Default")
+        reply = QMessageBox.question(
+            self, "Delete Profile",
+            f'Delete profile "{active}" and all its buttons?',
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        del profiles[active]
+        self.cfg["active_profile"] = next(iter(profiles))
+        config.save(self.cfg)
+        self._refresh_profile_combo()
+        self._populate_grid()
+
+    # ------------------------------------------------------------------
     # Theming
     # ------------------------------------------------------------------
 
@@ -127,6 +293,9 @@ class MainWindow(QMainWindow):
         self.cmd_input.setStyleSheet(theme.input_field(p))
         self.settings_btn.setStyleSheet(theme.action_btn(p))
         self.save_btn.setStyleSheet(theme.action_btn(p, hover_accent=p["green"]))
+        self.profile_menu_btn.setStyleSheet(
+            theme.action_btn(p)
+            + "QPushButton::menu-indicator { width: 0; height: 0; }")
 
         for btn in self._buttons:
             btn.apply_theme(p)
@@ -148,9 +317,10 @@ class MainWindow(QMainWindow):
         self.grid_layout.setSpacing(10)
         self.grid_layout.setContentsMargins(10, 10, 10, 10)
 
-        cols = self.cfg.get("grid_cols", 3)
-        rows = self.cfg.get("grid_rows", 3)
-        btn_data: dict = self.cfg.get("buttons", {})
+        profile = self._profile
+        cols = profile.get("grid_cols", 3)
+        rows = profile.get("grid_rows", 3)
+        btn_data: dict = profile.get("buttons", {})
 
         for c in range(cols):
             self.grid_layout.setColumnStretch(c, 1)
@@ -215,7 +385,8 @@ class MainWindow(QMainWindow):
         if not self._last_command:
             return
 
-        btn_data = self.cfg.get("buttons", {})
+        profile = self._profile
+        btn_data = profile.get("buttons", {})
         info = []
         for btn in self._buttons:
             slot = btn_data.get(str(btn.index), {})
@@ -230,7 +401,7 @@ class MainWindow(QMainWindow):
         if dlg.exec() == SaveCommandDialog.DialogCode.Accepted:
             idx, name, command = dlg.result_values()
             existing_color = btn_data.get(str(idx), {}).get("color", "")
-            self.cfg.setdefault("buttons", {})[str(idx)] = {
+            profile.setdefault("buttons", {})[str(idx)] = {
                 "name": name, "command": command, "color": existing_color,
             }
             config.save(self.cfg)
@@ -241,29 +412,31 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _open_editor(self, index: int):
-        slot = self.cfg.setdefault("buttons", {}).get(str(index), {})
+        profile = self._profile
+        slot = profile.setdefault("buttons", {}).get(str(index), {})
         dlg = EditorDialog(slot.get("name", ""), slot.get("command", ""),
                            slot.get("color", ""), self)
         if dlg.exec() == EditorDialog.DialogCode.Accepted:
             name, command, color = dlg.values()
-            self.cfg["buttons"][str(index)] = {
+            profile["buttons"][str(index)] = {
                 "name": name, "command": command, "color": color,
             }
             config.save(self.cfg)
             self._buttons[index].update_data(name, command, color)
 
     def _open_settings(self):
+        profile = self._profile
         dlg = SettingsDialog(
-            self.cfg.get("grid_cols", 3),
-            self.cfg.get("grid_rows", 3),
+            profile.get("grid_cols", 3),
+            profile.get("grid_rows", 3),
             self.cfg.get("theme", "auto"),
             self,
         )
         if dlg.exec() == SettingsDialog.DialogCode.Accepted:
             cols, rows, theme_mode = dlg.values()
             theme_changed = theme_mode != self.cfg.get("theme", "auto")
-            self.cfg["grid_cols"] = cols
-            self.cfg["grid_rows"] = rows
+            profile["grid_cols"] = cols
+            profile["grid_rows"] = rows
             self.cfg["theme"] = theme_mode
             config.save(self.cfg)
             self._populate_grid()
