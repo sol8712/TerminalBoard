@@ -383,8 +383,6 @@ class MainWindow(QMainWindow):
             command = _SUDO_RE.sub("pkexec", command)
             elevated = True
 
-        self.terminal.appendPlainText(f"\n{'─' * 44}")
-
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self._process.readyReadStandardOutput.connect(self._on_output)
