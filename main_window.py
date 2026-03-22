@@ -147,6 +147,12 @@ class MainWindow(QMainWindow):
         self.cmd_input.returnPressed.connect(self._run_input_command)
         input_bar.addWidget(self.cmd_input)
 
+        self.stop_btn = QPushButton("Stop")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.stop_btn.clicked.connect(self._stop_process)
+        input_bar.addWidget(self.stop_btn)
+
         self.save_btn = QPushButton("Save to Button")
         self.save_btn.setEnabled(False)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -385,6 +391,7 @@ class MainWindow(QMainWindow):
         self._process.finished.connect(self._on_finished)
         self._process.setProcessEnvironment(QProcessEnvironment.systemEnvironment())
         self._process.start("/bin/bash", ["-c", command])
+        self.stop_btn.setEnabled(True)
 
     def _on_output(self):
         raw = self._process.readAllStandardOutput().data().decode("utf-8", errors="replace")
@@ -396,6 +403,7 @@ class MainWindow(QMainWindow):
         self.terminal.ensureCursorVisible()
 
     def _on_finished(self, _exit_code: int, _exit_status):
+        self.stop_btn.setEnabled(False)
         self.terminal.appendPlainText("")
 
     # ------------------------------------------------------------------
