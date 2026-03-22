@@ -1,5 +1,6 @@
 import copy
 import re
+import shutil
 
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -18,6 +19,7 @@ from settings_dialog import SettingsDialog
 from save_dialog import SaveCommandDialog
 
 _ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_SUDO_RE = re.compile(r"\bsudo\b")
 
 
 class MainWindow(QMainWindow):
@@ -347,7 +349,23 @@ class MainWindow(QMainWindow):
             self._process.kill()
             self._process.waitForFinished(2000)
 
-        self.terminal.appendPlainText(f"\n$ {name}\n{'─' * 44}")
+        elevated = False
+        if _SUDO_RE.search(command):
+            if not shutil.which("pkexec"):
+                QMessageBox.warning(
+                    self, "pkexec Not Found",
+                    "This command requires elevated privileges but "
+                    "pkexec is not installed.\n\n"
+                    "Install policykit-1 or polkit to enable "
+                    "privilege escalation.")
+                return
+            command = _SUDO_RE.sub("pkexec", command)
+            elevated = True
+
+        self.terminal.appendPlainText(f"\n$ {name}")
+        if elevated:
+            self.terminal.appendPlainText("[elevated via pkexec]")
+        self.terminal.appendPlainText(f"{'─' * 44}")
 
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
