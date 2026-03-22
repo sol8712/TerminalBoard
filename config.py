@@ -41,7 +41,11 @@ def _verify_ownership(path: Path) -> None:
 def _secure_write(path: Path, data: str) -> None:
     """Atomically write *data* to *path* with 0600 permissions."""
     tmp = path.with_suffix(".tmp")
-    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    fd = os.open(
+        str(tmp),
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+        0o600,
+    )
     try:
         with os.fdopen(fd, "w") as f:
             f.write(data)
@@ -154,6 +158,9 @@ def load() -> dict:
 
 def save(cfg: dict) -> None:
     _ensure_config_dir()
+    _verify_ownership(CONFIG_DIR)
+    if CONFIG_FILE.exists():
+        _verify_ownership(CONFIG_FILE)
     _secure_write(CONFIG_FILE, json.dumps(cfg, indent=2))
 
 
