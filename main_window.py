@@ -370,10 +370,7 @@ class MainWindow(QMainWindow):
             command = _SUDO_RE.sub("pkexec", command)
             elevated = True
 
-        self.terminal.appendPlainText(f"\n$ {name}")
-        if elevated:
-            self.terminal.appendPlainText("[elevated via pkexec]")
-        self.terminal.appendPlainText(f"{'─' * 44}")
+        self.terminal.appendPlainText(f"\n{'─' * 44}")
 
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -391,8 +388,8 @@ class MainWindow(QMainWindow):
         self.terminal.insertPlainText(clean)
         self.terminal.ensureCursorVisible()
 
-    def _on_finished(self, exit_code: int, _exit_status):
-        self.terminal.appendPlainText(f"\n[exited with code {exit_code}]")
+    def _on_finished(self, _exit_code: int, _exit_status):
+        self.terminal.appendPlainText("")
 
     # ------------------------------------------------------------------
     # Terminal input
