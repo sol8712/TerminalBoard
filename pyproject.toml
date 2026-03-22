@@ -1,0 +1,15 @@
+[project]
+name = "TerminalBoard"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["PySide6"]
+
+[tool.pyside6-project]
+files = [
+    "main.py",
+    "main_window.py",
+    "command_button.py",
+    "editor_dialog.py",
+    "settings_dialog.py",
+    "config.py",
+]
