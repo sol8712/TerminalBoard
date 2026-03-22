@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 
@@ -14,6 +15,34 @@ PROFILE_DEFAULTS = {
     "grid_rows": 3,
     "buttons": {},
 }
+
+
+def _ensure_config_dir() -> None:
+    """Create the config directory with secure permissions (owner-only)."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    CONFIG_DIR.chmod(0o700)
+
+
+def _verify_ownership(path: Path) -> None:
+    """Raise RuntimeError if *path* is not owned by the current user."""
+    if path.exists() and path.stat().st_uid != os.getuid():
+        raise RuntimeError(
+            f"Refusing to load {path}: owned by uid {path.stat().st_uid}, "
+            f"expected {os.getuid()}"
+        )
+
+
+def _secure_write(path: Path, data: str) -> None:
+    """Atomically write *data* to *path* with 0600 permissions."""
+    tmp = path.with_suffix(".tmp")
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(data)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    tmp.replace(path)
 
 
 def sanitize_profile_name(name: str) -> str:
@@ -47,8 +76,10 @@ def _migrate(data: dict) -> dict:
 
 
 def load() -> dict:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _ensure_config_dir()
+    _verify_ownership(CONFIG_DIR)
     if CONFIG_FILE.exists():
+        _verify_ownership(CONFIG_FILE)
         try:
             with open(CONFIG_FILE, "r") as f:
                 data = json.load(f)
@@ -69,11 +100,8 @@ def load() -> dict:
 
 
 def save(cfg: dict) -> None:
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = CONFIG_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(cfg, f, indent=2)
-    tmp.replace(CONFIG_FILE)
+    _ensure_config_dir()
+    _secure_write(CONFIG_FILE, json.dumps(cfg, indent=2))
 
 
 def active_profile(cfg: dict) -> dict:
