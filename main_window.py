@@ -18,7 +18,15 @@ from editor_dialog import EditorDialog
 from settings_dialog import SettingsDialog
 from save_dialog import SaveCommandDialog
 
-_ANSI_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+_ANSI_RE = re.compile(
+    r"\x1B(?:"
+    r"[@-Z\\-_]"                        # two-character sequences (e.g. \x1B7)
+    r"|\[[0-?]*[ -/]*[@-~]"            # CSI sequences    (e.g. \x1B[31m)
+    r"|\][^\x07\x1B]*(?:\x07|\x1B\\)"  # OSC sequences    (e.g. \x1B]0;title\x07)
+    r"|P[^\x1B]*\x1B\\"                # DCS sequences    (e.g. \x1BP...\x1B\\)
+    r"|\([A-Z0-9]"                      # charset select   (e.g. \x1B(B)
+    r")"
+)
 _SUDO_RE = re.compile(r"\bsudo\b")
 
 
