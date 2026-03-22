@@ -352,10 +352,17 @@ class MainWindow(QMainWindow):
     # Command execution
     # ------------------------------------------------------------------
 
-    def _run_command(self, name: str, command: str):
-        if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
+    def _stop_process(self):
+        """Gracefully stop the running process (SIGTERM → SIGKILL)."""
+        if not self._process or self._process.state() == QProcess.ProcessState.NotRunning:
+            return
+        self._process.terminate()
+        if not self._process.waitForFinished(2000):
             self._process.kill()
-            self._process.waitForFinished(2000)
+            self._process.waitForFinished(1000)
+
+    def _run_command(self, name: str, command: str):
+        self._stop_process()
 
         elevated = False
         if _SUDO_RE.search(command):
@@ -471,7 +478,5 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def closeEvent(self, event):
-        if self._process and self._process.state() != QProcess.ProcessState.NotRunning:
-            self._process.kill()
-            self._process.waitForFinished(2000)
+        self._stop_process()
         super().closeEvent(event)
