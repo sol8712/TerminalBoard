@@ -1,5 +1,9 @@
 import copy
+import fcntl
+import os
+import pty
 import re
+import signal
 import shutil
 
 from PySide6.QtWidgets import (
@@ -8,7 +12,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit, QSplitter, QSizePolicy, QLabel, QApplication,
     QComboBox, QMenu, QInputDialog, QMessageBox,
 )
-from PySide6.QtCore import Qt, QProcess, QProcessEnvironment
+from PySide6.QtCore import Qt, QSocketNotifier
 from PySide6.QtGui import QTextCursor, QFont
 
 import config
@@ -37,11 +41,14 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(640, 480)
         self.cfg = config.load()
         self._buttons: list[CommandButton] = []
-        self._process: QProcess | None = None
+        self._master_fd: int | None = None
+        self._child_pid: int | None = None
+        self._notifier: QSocketNotifier | None = None
         self._last_command: str = ""
         self._pal: dict = {}
 
         self._build_ui()
+        self._spawn_shell()
         self._refresh_profile_combo()
         self._populate_grid()
         self._apply_theme()
@@ -355,54 +362,100 @@ class MainWindow(QMainWindow):
                 self._buttons.append(btn)
 
     # ------------------------------------------------------------------
+    # PTY shell management
+    # ------------------------------------------------------------------
+
+    def _spawn_shell(self):
+        """Spawn a persistent interactive bash session via PTY."""
+        self._child_pid, self._master_fd = pty.fork()
+
+        if self._child_pid == 0:
+            # Child process — replace with bash
+            os.execvp("/bin/bash", ["/bin/bash", "--noediting", "-i"])
+            # never returns
+
+        # Parent — make master fd non-blocking so reads don't hang the UI
+        flags = fcntl.fcntl(self._master_fd, fcntl.F_GETFL)
+        fcntl.fcntl(self._master_fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+        # Wire into Qt event loop
+        self._notifier = QSocketNotifier(
+            self._master_fd, QSocketNotifier.Type.Read, self)
+        self._notifier.activated.connect(self._on_pty_output)
+
+        self.stop_btn.setEnabled(True)
+
+    # ------------------------------------------------------------------
     # Command execution
     # ------------------------------------------------------------------
 
     def _stop_process(self):
-        """Gracefully stop the running process (SIGTERM → SIGKILL)."""
-        if not self._process or self._process.state() == QProcess.ProcessState.NotRunning:
+        """Send Ctrl+C to interrupt the running command."""
+        if self._master_fd is None:
             return
-        self._process.terminate()
-        if not self._process.waitForFinished(2000):
-            self._process.kill()
-            self._process.waitForFinished(1000)
+        os.write(self._master_fd, b"\x03")
 
-    def _run_command(self, name: str, command: str):
-        self._stop_process()
+    def _run_command(self, name: str, command: str, from_input: bool = False):
+        if self._master_fd is None:
+            return
 
-        elevated = False
         if _SUDO_RE.search(command):
-            if not shutil.which("pkexec"):
-                QMessageBox.warning(
-                    self, "pkexec Not Found",
-                    "This command requires elevated privileges but "
-                    "pkexec is not installed.\n\n"
-                    "Install policykit-1 or polkit to enable "
-                    "privilege escalation.")
-                return
-            command = _SUDO_RE.sub("pkexec", command)
-            elevated = True
+            if from_input:
+                self.terminal.appendPlainText(
+                    "Note: sudo passwords are visible when typed. "
+                    "Use pkexec for secure password entry via system "
+                    "dialog.")
+            else:
+                if not shutil.which("pkexec"):
+                    QMessageBox.warning(
+                        self, "pkexec Not Found",
+                        "This command requires elevated privileges but "
+                        "pkexec is not installed.\n\n"
+                        "Install policykit-1 or polkit to enable "
+                        "privilege escalation.")
+                    return
+                command = _SUDO_RE.sub("pkexec", command)
 
-        self._process = QProcess(self)
-        self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
-        self._process.readyReadStandardOutput.connect(self._on_output)
-        self._process.finished.connect(self._on_finished)
-        self._process.setProcessEnvironment(QProcessEnvironment.systemEnvironment())
-        self._process.start("/bin/bash", ["-c", command])
-        self.stop_btn.setEnabled(True)
+        if not from_input:
+            # For button commands, interrupt any running command first
+            os.write(self._master_fd, b"\x03")
 
-    def _on_output(self):
-        raw = self._process.readAllStandardOutput().data().decode("utf-8", errors="replace")
-        clean = _ANSI_RE.sub("", raw)
+        os.write(self._master_fd, (command + "\n").encode())
+
+    def _on_pty_output(self):
+        try:
+            data = os.read(self._master_fd, 4096)
+        except OSError:
+            self._on_shell_exit()
+            return
+        if not data:
+            self._on_shell_exit()
+            return
+
+        text = data.decode("utf-8", errors="replace")
+        clean = _ANSI_RE.sub("", text)
         cursor = self.terminal.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
         self.terminal.setTextCursor(cursor)
         self.terminal.insertPlainText(clean)
         self.terminal.ensureCursorVisible()
 
-    def _on_finished(self, _exit_code: int, _exit_status):
+    def _on_shell_exit(self):
+        """Handle unexpected shell exit."""
+        if self._notifier:
+            self._notifier.setEnabled(False)
+        if self._master_fd is not None:
+            os.close(self._master_fd)
+            self._master_fd = None
+        if self._child_pid:
+            try:
+                os.waitpid(self._child_pid, os.WNOHANG)
+            except ChildProcessError:
+                pass
+            self._child_pid = None
         self.stop_btn.setEnabled(False)
-        self.terminal.appendPlainText("")
+        self.terminal.appendPlainText(
+            "\n[Shell exited. Restart the application to continue.]")
 
     # ------------------------------------------------------------------
     # Terminal input
@@ -414,7 +467,7 @@ class MainWindow(QMainWindow):
             return
         self._last_command = cmd
         self.save_btn.setEnabled(True)
-        self._run_command(cmd, cmd)
+        self._run_command(cmd, cmd, from_input=True)
         self.cmd_input.clear()
 
     def _save_to_button(self):
@@ -484,5 +537,16 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def closeEvent(self, event):
-        self._stop_process()
+        if self._notifier:
+            self._notifier.setEnabled(False)
+        if self._master_fd is not None:
+            os.close(self._master_fd)
+            self._master_fd = None
+        if self._child_pid:
+            os.kill(self._child_pid, signal.SIGTERM)
+            try:
+                os.waitpid(self._child_pid, 0)
+            except ChildProcessError:
+                pass
+            self._child_pid = None
         super().closeEvent(event)
