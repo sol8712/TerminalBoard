@@ -385,8 +385,6 @@ class MainWindow(QMainWindow):
             self._master_fd, QSocketNotifier.Type.Read, self)
         self._notifier.activated.connect(self._on_pty_output)
 
-        self.stop_btn.setEnabled(True)
-
     # ------------------------------------------------------------------
     # Command execution
     # ------------------------------------------------------------------
@@ -423,6 +421,7 @@ class MainWindow(QMainWindow):
         """Reset the stop button to its default state."""
         self._stop_armed = False
         self.stop_btn.setText("Stop")
+        self.stop_btn.setEnabled(False)
         if self._pal:
             self.stop_btn.setStyleSheet(theme.action_btn(self._pal))
 
@@ -457,6 +456,7 @@ class MainWindow(QMainWindow):
                 os.write(self._master_fd, b"\x03")
 
         os.write(self._master_fd, (command + "\n").encode())
+        self.stop_btn.setEnabled(True)
 
     def _on_pty_output(self):
         try:
@@ -477,13 +477,12 @@ class MainWindow(QMainWindow):
         self.terminal.ensureCursorVisible()
 
         # Reset stop button once the foreground process returns to the shell
-        if self._stop_armed:
-            try:
-                fg_pgrp = os.tcgetpgrp(self._master_fd)
-            except OSError:
-                fg_pgrp = None
-            if fg_pgrp is None or fg_pgrp == self._child_pid:
-                self._reset_stop_btn()
+        try:
+            fg_pgrp = os.tcgetpgrp(self._master_fd)
+        except OSError:
+            fg_pgrp = None
+        if fg_pgrp is None or fg_pgrp == self._child_pid:
+            self._reset_stop_btn()
 
     def _on_shell_exit(self):
         """Handle unexpected shell exit."""
