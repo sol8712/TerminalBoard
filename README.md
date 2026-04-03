@@ -27,4 +27,4 @@ Built with Python 3.12, PySide6, QT, and PyInstaller.
     source .venv/bin/activate
     python3 -m pip install pyside6
     python3 -m pip install pyinstaller
-    pyinstaller --onefile --name Terminal-Board-amd64 --windowed main.p
+    pyinstaller --onefile --name Terminal-Board-amd64 --windowed main.py
