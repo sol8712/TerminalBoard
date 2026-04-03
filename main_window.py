@@ -449,7 +449,12 @@ class MainWindow(QMainWindow):
 
         if not from_input:
             # For button commands, interrupt any running command first
-            os.write(self._master_fd, b"\x03")
+            try:
+                fg_pgrp = os.tcgetpgrp(self._master_fd)
+            except OSError:
+                fg_pgrp = None
+            if fg_pgrp is not None and fg_pgrp != self._child_pid:
+                os.write(self._master_fd, b"\x03")
 
         os.write(self._master_fd, (command + "\n").encode())
 
