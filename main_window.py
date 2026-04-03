@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self._child_pid: int | None = None
         self._notifier: QSocketNotifier | None = None
         self._last_command: str = ""
+        self._history: list[str] = []
         self._stop_armed: bool = False
         self._pal: dict = {}
 
@@ -105,6 +106,14 @@ class MainWindow(QMainWindow):
         top.addWidget(self.profile_menu_btn)
 
         top.addSpacing(8)
+
+        self.history_btn = QPushButton("History \u25be")
+        self.history_btn.setFixedHeight(30)
+        self.history_btn.setToolTip("Recent commands")
+        self.history_btn.setEnabled(False)
+        self.history_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.history_btn.clicked.connect(self._show_history_menu)
+        top.addWidget(self.history_btn)
 
         self.settings_btn = QPushButton("\u2699  Settings")
         self.settings_btn.setFixedHeight(30)
@@ -320,6 +329,7 @@ class MainWindow(QMainWindow):
         self.cmd_input.setStyleSheet(theme.input_field(p))
         self.settings_btn.setStyleSheet(theme.action_btn(p))
         self.save_btn.setStyleSheet(theme.action_btn(p, hover_accent=p["green"]))
+        self.history_btn.setStyleSheet(theme.action_btn(p))
         if self._stop_armed:
             self.stop_btn.setStyleSheet(
                 theme.action_btn(p)
@@ -526,7 +536,12 @@ class MainWindow(QMainWindow):
         if not cmd:
             return
         self._last_command = cmd
+        if cmd in self._history:
+            self._history.remove(cmd)
+        self._history.insert(0, cmd)
+        del self._history[50:]
         self.save_btn.setEnabled(True)
+        self.history_btn.setEnabled(True)
         self._run_command(cmd, cmd, from_input=True)
         self.cmd_input.clear()
 
@@ -555,6 +570,53 @@ class MainWindow(QMainWindow):
             }
             config.save(self.cfg)
             self._buttons[idx].update_data(name, command, existing_color)
+
+    # ------------------------------------------------------------------
+    # History
+    # ------------------------------------------------------------------
+
+    def _show_history_menu(self):
+        if not self._history:
+            return
+        menu = QMenu(self)
+        menu.setStyleSheet(theme.history_menu(self._pal))
+        for cmd in self._history:
+            preview = cmd if len(cmd) <= 60 else cmd[:57] + "\u2026"
+            sub = menu.addMenu(preview)
+            sub.setStyleSheet(theme.history_menu(self._pal))
+            sub.addAction("Run", lambda c=cmd: self._run_command(c, c, from_input=True))
+            sub.addAction("Save to Button", lambda c=cmd: self._save_history_to_button(c))
+        menu.addSeparator()
+        menu.addAction("Clear History", self._clear_history)
+        menu.exec(self.history_btn.mapToGlobal(
+            self.history_btn.rect().topRight()))
+
+    def _save_history_to_button(self, command: str):
+        profile = self._profile
+        btn_data = profile.get("buttons", {})
+        info = []
+        for btn in self._buttons:
+            slot = btn_data.get(str(btn.index), {})
+            info.append({
+                "index": btn.index,
+                "name": slot.get("name", ""),
+                "command": slot.get("command", ""),
+            })
+
+        dlg = SaveCommandDialog(command, info,
+                                palette=self._pal, parent=self)
+        if dlg.exec() == SaveCommandDialog.DialogCode.Accepted:
+            idx, name, final = dlg.result_values()
+            existing_color = btn_data.get(str(idx), {}).get("color", "")
+            profile.setdefault("buttons", {})[str(idx)] = {
+                "name": name, "command": final, "color": existing_color,
+            }
+            config.save(self.cfg)
+            self._buttons[idx].update_data(name, final, existing_color)
+
+    def _clear_history(self):
+        self._history.clear()
+        self.history_btn.setEnabled(False)
 
     # ------------------------------------------------------------------
     # Dialogs

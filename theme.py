@@ -306,3 +306,15 @@ def muted_label(p: dict) -> str:
 
 def prompt_label(p: dict) -> str:
     return f"QLabel {{ color: {p['green']}; font-weight: bold; }}"
+
+
+def history_menu(p: dict) -> str:
+    return (
+        f"QMenu {{ background: {p['surface']}; color: {p['text']};"
+        f" border: 1px solid {p['surface1']}; border-radius: 6px;"
+        f" padding: 4px; }}"
+        f"QMenu::item {{ padding: 6px 20px; border-radius: 4px; }}"
+        f"QMenu::item:selected {{ background: {p['surface1']}; }}"
+        f"QMenu::separator {{ height: 1px; background: {p['surface1']};"
+        f" margin: 4px 8px; }}"
+    )
