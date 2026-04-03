@@ -244,6 +244,8 @@ def btn_menu(p: dict) -> str:
         f" border: none; border-radius: 3px;"
         f" font-size: 16px; font-weight: bold; padding: 0px; }}"
         f"QPushButton:hover {{ background: rgba({_rgb(p['accent'])}, 0.5); }}"
+        f"QToolTip {{ background: {p['surface0']}; color: {p['text']};"
+        f" border: 1px solid {p['surface1']}; padding: 4px; }}"
     )
 
 

@@ -320,6 +320,12 @@ class MainWindow(QMainWindow):
         self.cmd_input.setStyleSheet(theme.input_field(p))
         self.settings_btn.setStyleSheet(theme.action_btn(p))
         self.save_btn.setStyleSheet(theme.action_btn(p, hover_accent=p["green"]))
+        if self._stop_armed:
+            self.stop_btn.setStyleSheet(
+                theme.action_btn(p)
+                + " QPushButton { color: #ff4444; font-weight: bold; }")
+        else:
+            self.stop_btn.setStyleSheet(theme.action_btn(p))
         self.profile_menu_btn.setStyleSheet(
             theme.action_btn(p)
             + "QPushButton::menu-indicator { width: 0; height: 0; }")
