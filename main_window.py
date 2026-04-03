@@ -158,11 +158,13 @@ class MainWindow(QMainWindow):
 
         self.stop_btn = QPushButton("Stop")
         self.stop_btn.setEnabled(False)
+        self.stop_btn.setToolTip("Ctrl+C")
         self.stop_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.stop_btn.clicked.connect(self._stop_process)
         input_bar.addWidget(self.stop_btn)
 
         self.save_btn = QPushButton("Save to Button")
+        self.save_btn.setToolTip("Save last typed command to a button")
         self.save_btn.setEnabled(False)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self._save_to_button)
@@ -413,6 +415,7 @@ class MainWindow(QMainWindow):
         os.write(self._master_fd, b"\x03")
         self._stop_armed = True
         self.stop_btn.setText("Kill")
+        self.stop_btn.setToolTip("Ctrl+X")
         self.stop_btn.setStyleSheet(
             self.stop_btn.styleSheet()
             + " QPushButton { color: #ff4444; font-weight: bold; }")
@@ -421,6 +424,7 @@ class MainWindow(QMainWindow):
         """Reset the stop button to its default state."""
         self._stop_armed = False
         self.stop_btn.setText("Stop")
+        self.stop_btn.setToolTip("Ctrl+C")
         self.stop_btn.setEnabled(False)
         if self._pal:
             self.stop_btn.setStyleSheet(theme.action_btn(self._pal))
