@@ -24,11 +24,11 @@ from save_dialog import SaveCommandDialog
 
 _ANSI_RE = re.compile(
     r"\x1B(?:"
-    r"[@-Z\\-_]"                        # two-character sequences (e.g. \x1B7)
-    r"|\[[0-?]*[ -/]*[@-~]"            # CSI sequences    (e.g. \x1B[31m)
+    r"\[[0-?]*[ -/]*[@-~]"             # CSI sequences    (e.g. \x1B[31m)
     r"|\][^\x07\x1B]*(?:\x07|\x1B\\)"  # OSC sequences    (e.g. \x1B]0;title\x07)
     r"|P[^\x1B]*\x1B\\"                # DCS sequences    (e.g. \x1BP...\x1B\\)
     r"|\([A-Z0-9]"                      # charset select   (e.g. \x1B(B)
+    r"|[@-Z\\-_]"                       # two-character sequences (e.g. \x1B7) — must be last
     r")"
 )
 _SUDO_RE = re.compile(r"\bsudo\b")
@@ -136,6 +136,7 @@ class MainWindow(QMainWindow):
         self._mono = QFont("Monospace", 10)
         self._mono.setStyleHint(QFont.StyleHint.TypeWriter)
         self.terminal.setFont(self._mono)
+        self.terminal.setPlainText("Welcome to your Terminal Board!\n\n")
         splitter.addWidget(self.terminal)
 
         splitter.setSizes([300, 200])
