@@ -584,7 +584,7 @@ class MainWindow(QMainWindow):
             preview = cmd if len(cmd) <= 60 else cmd[:57] + "\u2026"
             sub = menu.addMenu(preview)
             sub.setStyleSheet(theme.history_menu(self._pal))
-            sub.addAction("Run", lambda c=cmd: self._run_command(c, c, from_input=True))
+            sub.addAction("Edit", lambda c=cmd: self.cmd_input.setText(c))
             sub.addAction("Save to Button", lambda c=cmd: self._save_history_to_button(c))
         menu.addSeparator()
         menu.addAction("Clear History", self._clear_history)
