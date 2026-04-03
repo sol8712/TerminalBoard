@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         self._child_pid: int | None = None
         self._notifier: QSocketNotifier | None = None
         self._last_command: str = ""
+        self._stop_armed: bool = False
         self._pal: dict = {}
 
         self._build_ui()
@@ -390,10 +391,39 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _stop_process(self):
-        """Send Ctrl+C to interrupt the running command."""
+        """Send Ctrl+C on first click, SIGKILL when armed."""
         if self._master_fd is None:
             return
+
+        if self._stop_armed:
+            # Armed — force kill the foreground process, not the shell
+            try:
+                fg_pgrp = os.tcgetpgrp(self._master_fd)
+            except OSError:
+                fg_pgrp = None
+
+            if fg_pgrp and fg_pgrp != self._child_pid:
+                os.killpg(fg_pgrp, signal.SIGKILL)
+            else:
+                # Foreground is the shell itself — just send SIGINT again
+                os.write(self._master_fd, b"\x03")
+            self._reset_stop_btn()
+            return
+
+        # First click — send Ctrl+C and arm for kill
         os.write(self._master_fd, b"\x03")
+        self._stop_armed = True
+        self.stop_btn.setText("Kill")
+        self.stop_btn.setStyleSheet(
+            self.stop_btn.styleSheet()
+            + " QPushButton { color: #ff4444; font-weight: bold; }")
+
+    def _reset_stop_btn(self):
+        """Reset the stop button to its default state."""
+        self._stop_armed = False
+        self.stop_btn.setText("Stop")
+        if self._pal:
+            self.stop_btn.setStyleSheet(theme.action_btn(self._pal))
 
     def _run_command(self, name: str, command: str, from_input: bool = False):
         if self._master_fd is None:
@@ -439,6 +469,15 @@ class MainWindow(QMainWindow):
         self.terminal.setTextCursor(cursor)
         self.terminal.insertPlainText(clean)
         self.terminal.ensureCursorVisible()
+
+        # Reset stop button once the foreground process returns to the shell
+        if self._stop_armed:
+            try:
+                fg_pgrp = os.tcgetpgrp(self._master_fd)
+            except OSError:
+                fg_pgrp = None
+            if fg_pgrp is None or fg_pgrp == self._child_pid:
+                self._reset_stop_btn()
 
     def _on_shell_exit(self):
         """Handle unexpected shell exit."""
