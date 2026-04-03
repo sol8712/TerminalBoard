@@ -441,10 +441,16 @@ class MainWindow(QMainWindow):
 
         if _SUDO_RE.search(command):
             if from_input:
-                self.terminal.appendPlainText(
+                self.terminal.appendPlainText("")
+                self.terminal.appendHtml(
+                    '<span style="color: #ff4444;">'
                     "Note: sudo passwords are visible when typed. "
                     "Use pkexec for secure password entry via system "
-                    "dialog.")
+                    "dialog.</span>")
+                self.terminal.appendPlainText("")
+                self.terminal.appendPlainText("")
+
+            
             else:
                 if not shutil.which("pkexec"):
                     QMessageBox.warning(
