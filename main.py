@@ -5,8 +5,8 @@ from main_window import MainWindow
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("TerminalBoard")
-    app.setOrganizationName("TerminalBoard")
+    app.setApplicationName("Terminal Board")
+    app.setOrganizationName("Terminal Board")
 
     window = MainWindow()
     window.resize(860, 600)

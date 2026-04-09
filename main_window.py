@@ -37,7 +37,7 @@ _SUDO_RE = re.compile(r"\bsudo\b")
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TerminalBoard")
+        self.setWindowTitle("Terminal Board")
         self.setMinimumSize(640, 480)
         self.cfg = config.load()
         self._buttons: list[CommandButton] = []

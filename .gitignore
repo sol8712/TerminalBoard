@@ -5004,6 +5004,7 @@
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-ijson.py
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-imageio_ffmpeg.py
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-imageio.py
+.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-imagingcontrol4.py
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-iminuit.py
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-intake.py
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/hook-IPython.py
@@ -5682,6 +5683,7 @@
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-ijson.cpython-312.pyc
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-imageio_ffmpeg.cpython-312.pyc
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-imageio.cpython-312.pyc
+.venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-imagingcontrol4.cpython-312.pyc
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-iminuit.cpython-312.pyc
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-intake.cpython-312.pyc
 .venv/lib/python3.12/site-packages/_pyinstaller_hooks_contrib/stdhooks/__pycache__/hook-IPython.cpython-312.pyc
@@ -7274,13 +7276,13 @@
 .venv/lib/python3.12/site-packages/pyinstaller-6.19.0.dist-info/REQUESTED
 .venv/lib/python3.12/site-packages/pyinstaller-6.19.0.dist-info/WHEEL
 .venv/lib/python3.12/site-packages/pyinstaller-6.19.0.dist-info/licenses/COPYING.txt
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/entry_points.txt
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/INSTALLER
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/METADATA
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/RECORD
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/top_level.txt
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/WHEEL
-.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.3.dist-info/licenses/LICENSE
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/entry_points.txt
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/INSTALLER
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/METADATA
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/RECORD
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/top_level.txt
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/WHEEL
+.venv/lib/python3.12/site-packages/pyinstaller_hooks_contrib-2026.4.dist-info/licenses/LICENSE
 .venv/lib/python3.12/site-packages/pyside6-6.11.0.dist-info/INSTALLER
 .venv/lib/python3.12/site-packages/pyside6-6.11.0.dist-info/METADATA
 .venv/lib/python3.12/site-packages/pyside6-6.11.0.dist-info/RECORD
